@@ -13,6 +13,7 @@ import {
   Todo,
 } from "@/types/company";
 import { getCompany, saveCompany, deleteCompany } from "@/lib/storage";
+import { getCompanyAnalysis, getInterviewQuestions } from "@/lib/mockCompanyAi";
 
 const priorityLabel: Record<Priority, string> = {
   A: "志望度A（高）",
@@ -38,7 +39,9 @@ export default function CompanyDetailPage() {
     interviewDate: "",
     memo: "",
   });
-  const [activeTab, setActiveTab] = useState<"notes" | "docs" | "todos">("notes");
+  const [activeTab, setActiveTab] = useState<"notes" | "docs" | "todos" | "interview">("notes");
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
 
   // Note form
   const [noteTitle, setNoteTitle] = useState("");
@@ -179,6 +182,18 @@ export default function CompanyDetailPage() {
     save({ ...company, todos: company.todos.filter((t) => t.id !== id) });
   };
 
+  // AI Analysis
+  const handleAnalysis = () => {
+    setAnalysisLoading(true);
+    setTimeout(() => {
+      setShowAnalysis(true);
+      setAnalysisLoading(false);
+    }, 600);
+  };
+
+  const analysis = company ? getCompanyAnalysis(company.industry) : null;
+  const interviewQAs = company ? getInterviewQuestions(company.industry) : [];
+
   const inputCls =
     "w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-slate-100 dark:placeholder-slate-400";
 
@@ -313,15 +328,71 @@ export default function CompanyDetailPage() {
         )}
       </div>
 
-      {/* Tabs: Notes / Documents / Todos */}
+      {/* AI Analysis */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-medium text-slate-500 dark:text-slate-400">企業分析AI</h2>
+          {!showAnalysis && (
+            <button
+              onClick={handleAnalysis}
+              disabled={analysisLoading}
+              className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors disabled:opacity-50"
+            >
+              {analysisLoading ? "分析中..." : "AIで分析する"}
+            </button>
+          )}
+        </div>
+        {showAnalysis && analysis && (
+          <div className="space-y-4">
+            <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
+              <h3 className="text-sm font-bold text-purple-700 dark:text-purple-300 mb-2">
+                業界の特徴
+              </h3>
+              <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                {analysis.industryOverview}
+              </p>
+            </div>
+            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+              <h3 className="text-sm font-bold text-blue-700 dark:text-blue-300 mb-2">
+                面接の傾向
+              </h3>
+              <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                {analysis.interviewTrend}
+              </p>
+            </div>
+            <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-4">
+              <h3 className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mb-2">
+                求められる人材像
+              </h3>
+              <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                {analysis.idealCandidate}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowAnalysis(false)}
+              className="text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+            >
+              閉じる
+            </button>
+          </div>
+        )}
+        {!showAnalysis && !analysisLoading && (
+          <p className="text-sm text-slate-400 dark:text-slate-500">
+            AIが業界の特徴・面接傾向・求められる人材像を分析します
+          </p>
+        )}
+      </div>
+
+      {/* Tabs: Notes / Documents / Todos / Interview */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
         <div className="flex border-b border-slate-200 dark:border-slate-700">
           {(
             [
-              { key: "notes", label: `ES・メモ (${company.notes.length})` },
-              { key: "docs", label: `資料 (${company.documents.length})` },
-              { key: "todos", label: `TODO (${company.todos.filter((t) => !t.completed).length}/${company.todos.length})` },
-            ] as const
+              { key: "notes" as const, label: `ES・メモ (${company.notes.length})` },
+              { key: "docs" as const, label: `資料 (${company.documents.length})` },
+              { key: "todos" as const, label: `TODO (${company.todos.filter((t) => !t.completed).length}/${company.todos.length})` },
+              { key: "interview" as const, label: "面接対策" },
+            ]
           ).map(({ key, label }) => (
             <button
               key={key}
@@ -486,6 +557,35 @@ export default function CompanyDetailPage() {
                   <button onClick={() => deleteTodo(todo.id)} className="text-xs text-slate-400 hover:text-red-500 transition-colors shrink-0">
                     削除
                   </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Interview Tab */}
+          {activeTab === "interview" && (
+            <div className="space-y-4">
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
+                {company.industry}業界でよく聞かれる質問と回答例です
+              </p>
+              {interviewQAs.map((qa, i) => (
+                <div key={i} className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-4">
+                  <div className="flex items-start gap-2 mb-3">
+                    <span className="shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center mt-0.5">
+                      Q{i + 1}
+                    </span>
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                      {qa.question}
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-2 ml-8">
+                    <span className="shrink-0 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-1.5 py-0.5 rounded mt-0.5">
+                      A
+                    </span>
+                    <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                      {qa.answer}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>

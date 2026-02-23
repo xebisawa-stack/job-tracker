@@ -6,6 +6,7 @@ import { Company, Priority } from "@/types/company";
 import { getCompanies } from "@/lib/storage";
 import { exportCompaniesCSV } from "@/lib/csv";
 import Calendar from "@/components/Calendar";
+import Dashboard from "@/components/Dashboard";
 
 const priorityColor: Record<Priority, string> = {
   A: "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800",
@@ -96,6 +97,9 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* Dashboard */}
+      <Dashboard companies={companies} />
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
